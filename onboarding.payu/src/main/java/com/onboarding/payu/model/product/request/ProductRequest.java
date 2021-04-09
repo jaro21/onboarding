@@ -45,5 +45,5 @@ public class ProductRequest {
 	@NotNull(message = "Product stock cannot not be empty")
 	private Integer stock;
 
-	private Integer active;
+	private boolean active = true;
 }

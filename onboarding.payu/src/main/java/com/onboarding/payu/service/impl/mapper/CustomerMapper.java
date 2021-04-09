@@ -22,9 +22,8 @@ public class CustomerMapper {
 													   .state(customerRequest.getState())
 													   .country(customerRequest.getCountry())
 													   .postal_code(customerRequest.getPostal_code())
-													   .active(customerRequest.getActive() != null ?
-															   customerRequest.getActive() :
-															   ActiveType.ACTIVE.getId());
+													   .active(customerRequest.isActive()?ActiveType.ACTIVE.getId():ActiveType.INACTIVE
+															   .getId());
 
 		return customerBuilder.build();
 	}
@@ -37,6 +36,6 @@ public class CustomerMapper {
 							   .email(customer.getEmail())
 							   .phone(customer.getPhone())
 							   .dniNumber(customer.getDniNumber())
-							   .active(customer.getActive()).build();
+							   .active(ActiveType.ACTIVE.getId().equals(customer.getActive())).build();
 	}
 }

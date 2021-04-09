@@ -1,5 +1,8 @@
 package com.onboarding.payu.service;
 
+import java.util.List;
+
+import com.onboarding.payu.model.purchase.request.DeclineRequest;
 import com.onboarding.payu.model.purchase.request.PurchaseOrderRequest;
 import com.onboarding.payu.model.purchase.response.PurchaseOrderResponse;
 import com.onboarding.payu.repository.entity.PurchaseOrder;
@@ -29,29 +32,45 @@ public interface IPurchaseOrder {
 	 * @return {@link PurchaseOrder}
 	 * @
 	 */
-	PurchaseOrder findById(Integer idPurchaseOrder);
+	PurchaseOrder findByIdPurchaseOrder(Integer idPurchaseOrder);
 
 	/**
 	 * Update Purchase Order's status by id
 	 *
 	 * @param status {@link String}
 	 * @param id     {@link Integer}
-	 * @return {@link Integer}
 	 */
-	Integer updateStatusById(String status, Integer id);
-
-	/**
-	 * Update Purchase Order
-	 *
-	 * @param purchaseOrder {@link PurchaseOrder}
-	 * @return {@link PurchaseOrder}
-	 */
-	PurchaseOrder update(PurchaseOrder purchaseOrder);
+	void updateStatusById(String status, Integer id);
 
 	/**
 	 * Decline Purchase Order by id
 	 *
-	 * @param id {@link Integer}
+	 * @param declineRequest {@link DeclineRequest}
 	 */
-	void decline(Integer id);
+	void decline(DeclineRequest declineRequest);
+
+	/**
+	 * Method to get Purchase Order by idCustomer and idPurchaseOrder
+	 *
+	 * @param idCustomer {@link Integer}
+	 * @param idPurchaseOrder {@link Integer}
+	 * @return {@link PurchaseOrderResponse}
+	 */
+	PurchaseOrderResponse findByIdCustomerAndIdPurchaseOrder(Integer idCustomer, Integer idPurchaseOrder);
+
+	/**
+	 * Method to get Purchase Order by idCustomer and idPurchaseOrder
+	 *
+	 * @param idCustomer {@link Integer}
+	 * @return {@link List<PurchaseOrderResponse>}
+	 */
+	List<PurchaseOrderResponse> findByIdCustomer(Integer idCustomer);
+
+	/**
+	 *
+	 *
+	 * @param purchaseOrderRequest {@link PurchaseOrderResponse}
+	 * @return {@link PurchaseOrderResponse}
+	 */
+	PurchaseOrderResponse updatePurchaseOrder(PurchaseOrderRequest purchaseOrderRequest);
 }

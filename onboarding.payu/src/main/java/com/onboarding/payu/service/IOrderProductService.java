@@ -22,10 +22,10 @@ public interface IOrderProductService {
 	List<OrderProduct> saveAll(List<OrderProduct> orderProductList);
 
 	/**
-	 * Get purchase order list by idPurchaseOrder
+	 * delete the list of products included in a purchase order
 	 *
-	 * @param idPurchaseOrder {@link Integer}
-	 * @return {@link List<OrderProduct>}
+	 * @param idPurchasOrder {@link Integer}
 	 */
-	List<OrderProduct> findByIdPurchaseOrder(Integer idPurchaseOrder);
+	void deleteByIdPurchaseOrder(Integer idPurchasOrder);
+
 }

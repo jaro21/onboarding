@@ -69,6 +69,23 @@ public class PaymentExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	/**
+	 * Handle an {@link IllegalArgumentException}.
+	 *
+	 * @param ex of {@link IllegalArgumentException} with the information about the error.
+	 * @return {@link ResponseEntity<ResponseDto>} object with the formatted error information.
+	 */
+	@ResponseBody
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ResponseDto> handleIllegalArgumentException(final IllegalArgumentException ex) {
+
+		log.info(ex.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+							 .body(ResponseDto.builder()
+											  .message(ex.getMessage())
+											  .build());
+	}
+
+	/**
 	 * Handler the generic exception.
 	 *
 	 * @param e {@link Exception} with the information about the error.

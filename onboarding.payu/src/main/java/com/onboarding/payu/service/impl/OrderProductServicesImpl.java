@@ -2,8 +2,6 @@ package com.onboarding.payu.service.impl;
 
 import java.util.List;
 
-import com.onboarding.payu.exception.BusinessAppException;
-import com.onboarding.payu.exception.ExceptionCodes;
 import com.onboarding.payu.repository.IOrderProductRepository;
 import com.onboarding.payu.repository.entity.OrderProduct;
 import com.onboarding.payu.service.IOrderProductService;
@@ -36,12 +34,8 @@ public class OrderProductServicesImpl implements IOrderProductService {
 		return iOrderProductRepository.saveAll(orderProductList);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override public List<OrderProduct> findByIdPurchaseOrder(final Integer idPurchaseOrder) {
+	@Override public void deleteByIdPurchaseOrder(final Integer idPurchasOrder) {
 
-		return iOrderProductRepository.findByIdPurchaseOrder(idPurchaseOrder).orElseThrow(
-				() -> new BusinessAppException(ExceptionCodes.PURCHASE_ORDER_INVALID));
+		iOrderProductRepository.deleteByIdPurchaseOrder(idPurchasOrder);
 	}
 }

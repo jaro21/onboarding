@@ -35,9 +35,8 @@ public class OrderProduct {
 	@Column(name = "id_order_product", updatable = false, nullable = false)
 	private Integer idOrderProduct;
 
-	@ManyToOne
-	@JoinColumn(name = "id_purchase_order", updatable = false, nullable = false)
-	private PurchaseOrder purchaseOrder;
+	@Column(name = "id_purchase_order")
+	private Integer idPurchaseOrder;
 
 	@ManyToOne
 	@JoinColumn(name = "id_product", updatable = false, nullable = false)

@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import com.onboarding.payu.model.ActiveType;
 import com.onboarding.payu.model.product.request.ProductRequest;
+import com.onboarding.payu.model.product.response.ProductResponse;
 import com.onboarding.payu.repository.entity.Product;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +27,7 @@ public class ProductMapper {
 					  .description(productRequest.getDescription())
 					  .price(productRequest.getPrice())
 					  .stock(productRequest.getStock())
-					  .active(productRequest.getActive() != null ? productRequest.getActive() : ActiveType.ACTIVE.getId())
+					  .active(productRequest.isActive() ? ActiveType.ACTIVE.getId():ActiveType.INACTIVE.getId())
 					  .build();
 	}
 
@@ -43,5 +44,17 @@ public class ProductMapper {
 	public List<ProductRequest> toProductDtoList(final List<Product> productList) {
 
 		return productList.stream().map(product -> toProductDto(product)).collect(Collectors.toList());
+	}
+
+	public ProductResponse toProductResponse(final Product product) {
+		return ProductResponse.builder()
+							  .idProduct(product.getIdProduct())
+							  .name(product.getName())
+							  .code(product.getCode())
+							  .description(product.getDescription())
+							  .price(product.getPrice())
+							  .stock(product.getStock())
+							  .active(ActiveType.ACTIVE.getId().equals(product.getActive()))
+							  .build();
 	}
 }

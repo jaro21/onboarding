@@ -65,5 +65,5 @@ public class CustomerRequest {
 	@Size(max = 5, message = "The size of the postal code must be a maximum of 5 characters.")
 	private String postal_code;
 
-	private Integer active;
+	private boolean active = true;
 }

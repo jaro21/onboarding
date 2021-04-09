@@ -1,12 +1,15 @@
 package com.onboarding.payu.service.impl;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.IntBinaryOperator;
 import java.util.stream.Collectors;
 
 import com.onboarding.payu.exception.BusinessAppException;
 import com.onboarding.payu.exception.ExceptionCodes;
 import com.onboarding.payu.model.StatusType;
+import com.onboarding.payu.model.purchase.request.DeclineRequest;
 import com.onboarding.payu.model.purchase.request.ProductPoDto;
 import com.onboarding.payu.model.purchase.request.PurchaseOrderRequest;
 import com.onboarding.payu.model.purchase.response.PurchaseOrderResponse;
@@ -71,11 +74,13 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 		final Customer customer = iCustomerService.findById(purchaseOrderRequest.getCustomer().getIdCustomer());
 
 		isValidOrder(productList, purchaseOrderRequest.getProductList());
-		updateStockById(productList, purchaseOrderRequest.getProductList());
 		final PurchaseOrder purchaseOrder = iPurchaseOrderRepository.save(purchaseOrderMapper.toPurchaseOrder(customer, productList,
 																											  purchaseOrderRequest));
-		List<OrderProduct> orderProductList = getOrderProducts(purchaseOrderRequest.getProductList(), productList, purchaseOrder);
+		final List<OrderProduct> orderProductList = getOrderProducts(purchaseOrderRequest.getProductList(), productList, purchaseOrder);
 		iOrderProductService.saveAll(orderProductList);
+		orderProductList.stream().forEach(orderProduct -> iProductService
+				.updateStockById(subtract.applyAsInt(orderProduct.getProduct().getStock(), orderProduct.getQuantity()),
+								 orderProduct.getProduct().getIdProduct()));
 
 		return purchaseOrderMapper.toPurchaseOrderResponse(purchaseOrder);
 	}
@@ -83,7 +88,7 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override public PurchaseOrder findById(final Integer idPurchaseOrder) {
+	@Override public PurchaseOrder findByIdPurchaseOrder(final Integer idPurchaseOrder) {
 
 		return iPurchaseOrderRepository.findById(idPurchaseOrder).orElseThrow(
 				() -> new BusinessAppException(ExceptionCodes.PURCHASE_ORDER_INVALID));
@@ -92,59 +97,142 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override public Integer updateStatusById(final String status, final Integer id) {
+	@Override public void updateStatusById(final String status, final Integer id) {
 
-		return iPurchaseOrderRepository.updateStatusById(status, id);
+		iPurchaseOrderRepository.updateStatusById(status, id);
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override public PurchaseOrder update(final PurchaseOrder purchaseOrder) {
+	@Transactional
+	@Override public void decline(DeclineRequest declineRequest) {
 
-		return iPurchaseOrderRepository.save(purchaseOrder);
+		final PurchaseOrder purchaseOrder = findByIdPurchaseOrder(declineRequest.getIdPurchaseOrder());
+		validToDecline(declineRequest, purchaseOrder);
+
+		iPurchaseOrderRepository.updateStatusById(StatusType.DECLINED.name(), declineRequest.getIdPurchaseOrder());
+
+		purchaseOrder.getProducts().stream()
+					 .forEach(orderProduct -> iProductService.updateStockById(add.applyAsInt(orderProduct.getQuantity(),
+																							 orderProduct.getProduct().getStock()),
+																			  orderProduct.getProduct().getIdProduct()));
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	@Override public void decline(final Integer id) {
+	@Override public PurchaseOrderResponse findByIdCustomerAndIdPurchaseOrder(final Integer idCustomer, final Integer idPurchaseOrder) {
 
-		iPurchaseOrderRepository.updateStatusById(StatusType.DECLINED.name(), id);
+		return purchaseOrderMapper.toPurchaseOrderResponseWithProducts(
+				getPurchaseOrdersByIdCustomer(idCustomer).stream().filter(purchaseOrder -> purchaseOrder.getIdPurchaseOrder()
+																										.equals(idPurchaseOrder))
+														 .findFirst().orElseThrow(
+						() -> new BusinessAppException(ExceptionCodes.PURCHASE_ORDER_INVALID_CUSTOMER)));
 	}
 
 	/**
-	 * add quantity to stock
-	 *
-	 * @param id {@link Integer}
+	 * {@inheritDoc}
 	 */
-	private void addStock(final Integer id) {
+	@Override public List<PurchaseOrderResponse> findByIdCustomer(final Integer idCustomer) {
 
-		final List<OrderProduct> orderProductList = iOrderProductService.findByIdPurchaseOrder(id);
-		final List<Integer> productListId = orderProductList.stream().map(orderProduct -> orderProduct.getProduct().getIdProduct())
-															.collect(Collectors.toList());
-		final List<Product> productList = iProductService.findProductsByIds(productListId);
-
-		productList.stream().map(product ->
-										 Product.builder().idProduct(product.getIdProduct())
-												.stock(add.applyAsInt(product.getStock(),
-																	  getQuantityOrder(orderProductList, product))).build())
-				   .collect(Collectors.toList())
-		.forEach(product -> iProductService.updateStockById(product.getStock(), product.getIdProduct()));
-
+		return getPurchaseOrdersByIdCustomer(idCustomer).stream().map(purchaseOrderMapper::toPurchaseOrderResponseWithProducts)
+														.collect(Collectors.toList());
 	}
 
-	private Integer getQuantityOrder(final List<OrderProduct> orderProductList, final Product product) {
+	/**
+	 * {@inheritDoc}
+	 */
+	@Transactional
+	@Override public PurchaseOrderResponse updatePurchaseOrder(final PurchaseOrderRequest purchaseOrderRequest) {
 
-		final OrderProduct orderProductRes = orderProductList.stream().filter(orderProduct ->
-																					  orderProduct.getProduct().getIdProduct()
-																								  .equals(product.getIdProduct()))
-															 .findFirst()
-															 .orElseThrow(
-																	 () -> new BusinessAppException(
-																			 ExceptionCodes.ERROR_TO_PROCESS_PRODUCT));
+		final PurchaseOrder purchaseOrder = findByIdPurchaseOrder(purchaseOrderRequest.getId());
 
-		return orderProductRes.getQuantity();
+		final List<Product> productsUpdate = getProductsToUpdate(purchaseOrderRequest, purchaseOrder);
+
+		final List<Product> productList =
+				iProductService.findProductsByIds(productsUpdate.stream().map(Product::getIdProduct).collect(Collectors.toList()));
+
+		productList.stream()
+				   .forEach(product -> {
+					   final Optional<Product> productUpd =
+							   productsUpdate.stream().filter(productUpdate -> productUpdate.getIdProduct().equals(product.getIdProduct()))
+											 .findFirst();
+					   if (productUpd.isPresent()) {
+						   final Integer stock = add.applyAsInt(product.getStock(), productUpd.get().getStock());
+						   if (stock < 0) {
+							   throw new BusinessAppException(ExceptionCodes.PRODUCT_NOT_AVAILABLE, productUpd.get().getStock().toString());
+						   }
+						   iProductService.updateStockById(stock, product.getIdProduct());
+					   }
+				   });
+
+		iOrderProductService.deleteByIdPurchaseOrder(purchaseOrder.getIdPurchaseOrder());
+
+		final PurchaseOrder purchaseOrderUpdate = iPurchaseOrderRepository.save(purchaseOrderMapper.toPurchaseOrder(purchaseOrder,
+																													productList,
+																													purchaseOrderRequest));
+		final List<OrderProduct> orderProductList = getOrderProducts(purchaseOrderRequest.getProductList(), productList,
+																	 purchaseOrderUpdate);
+		iOrderProductService.saveAll(orderProductList);
+
+		return purchaseOrderMapper.toPurchaseOrderResponse(purchaseOrderUpdate);
+	}
+
+	/**
+	 * @param purchaseOrderRequest {@link PurchaseOrderRequest}
+	 * @param purchaseOrder        {@link PurchaseOrder}
+	 * @return {@link List<Product>}
+	 */
+	private List<Product> getProductsToUpdate(final PurchaseOrderRequest purchaseOrderRequest, final PurchaseOrder purchaseOrder) {
+
+		return purchaseOrder.getProducts().stream().map(orderProduct -> {
+			final Optional<ProductPoDto> productOptional =
+					purchaseOrderRequest.getProductList().stream()
+										.filter(product -> product.getIdProduct().equals(orderProduct.getProduct().getIdProduct()))
+										.findFirst();
+			if (productOptional.isPresent()) {
+				return Product.builder().idProduct(productOptional.get().getIdProduct())
+							  .stock(subtract.applyAsInt(orderProduct.getQuantity(), productOptional.get().getQuantity()))
+							  .build();
+			} else {
+				return Product.builder().idProduct(productOptional.get().getIdProduct())
+							  .stock(productOptional.get().getQuantity())
+							  .build();
+			}
+		}).collect(Collectors.toList());
+	}
+
+	/**
+	 * @param idCustomer {@link Integer}
+	 * @return {@link List<PurchaseOrder>}
+	 */
+	private List<PurchaseOrder> getPurchaseOrdersByIdCustomer(final Integer idCustomer) {
+
+		final List<PurchaseOrder> purchaseOrderList = iPurchaseOrderRepository.findByCustomerIdCustomer(idCustomer).orElse(
+				Collections.emptyList());
+
+		if (purchaseOrderList.isEmpty()) {
+			throw new BusinessAppException(ExceptionCodes.CUSTOMER_HAS_NO_PURCHASE_ORDER);
+		}
+
+		return purchaseOrderList;
+	}
+
+	/**
+	 * @param declineRequest {@link DeclineRequest}
+	 * @param purchaseOrder
+	 */
+	private void validToDecline(final DeclineRequest declineRequest,
+								final PurchaseOrder purchaseOrder) {
+
+		if (!purchaseOrder.getStatus().equals(StatusType.SAVED.name())) {
+			throw new BusinessAppException(ExceptionCodes.PURCHASE_ORDER_CANNOT_BE_DECLINED);
+		}
+
+		if (purchaseOrder.getCustomer() == null || !declineRequest.getIdCustomer().equals(purchaseOrder.getCustomer().getIdCustomer())) {
+			throw new BusinessAppException(ExceptionCodes.PURCHASE_ORDER_INVALID_CUSTOMER);
+		}
 	}
 
 	/**
@@ -179,7 +267,7 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 		return OrderProduct.builder().product(productRes)
 						   .quantity(productPoDto.getQuantity())
 						   .unitValue(productRes.getPrice())
-						   .purchaseOrder(purchaseOrder)
+						   .idPurchaseOrder(purchaseOrder.getIdPurchaseOrder())
 						   .build();
 	}
 
@@ -191,80 +279,15 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 	 */
 	private void isValidOrder(final List<Product> productList, final List<ProductPoDto> productPoDtoList) {
 
-		for (Product product : productList) {
-			for (ProductPoDto productPoDTO : productPoDtoList) {
-				validateStock(product, productPoDTO);
+		productList.stream().forEach(product -> {
+			final ProductPoDto productPoDto =
+					productPoDtoList.stream().filter(prod -> prod.getIdProduct().equals(product.getIdProduct())).findFirst()
+									.orElseThrow(() -> new BusinessAppException(ExceptionCodes.PRODUCT_ID_NOT_EXIST,
+																				product.getIdProduct().toString()));
+			if (product.getStock().compareTo(productPoDto.getQuantity()) < 0) {
+				throw new BusinessAppException(ExceptionCodes.PRODUCT_NOT_AVAILABLE, product.getName());
 			}
-		}
-	}
-
-	/**
-	 * Compare the existing stock and the quantity of products in the purchase order.
-	 *
-	 * @param product      {@link Product}
-	 * @param productPoDTO {@link ProductPoDto}
-	 */
-	private void validateStock(final Product product, final ProductPoDto productPoDTO) {
-
-		if (productPoDTO.getIdProduct().equals(product.getIdProduct())
-				&& product.getStock().compareTo(productPoDTO.getQuantity()) < 0) {
-			throw new BusinessAppException(ExceptionCodes.PRODUCT_NOT_AVAILABLE, product.getName());
-		}
-	}
-
-	/**
-	 * Update stock by product id
-	 *
-	 * @param productList      {@link List<Product>}
-	 * @param productPoDTOList {@link List<ProductPoDto>}
-	 */
-	private void updateStockById(final List<Product> productList, final List<ProductPoDto> productPoDTOList) {
-
-		final List<Product> products = getProductListToUpdate(productList, productPoDTOList);
-		products.forEach(product -> iProductService.updateStockById(product.getStock(), product.getIdProduct()));
-	}
-
-	/**
-	 * Get product list with new stock.
-	 *
-	 * @param productList      {@link List<Product>}
-	 * @param productPoDTOList {@link List<ProductPoDto>}
-	 * @return {@link List<Product>}
-	 */
-	private List<Product> getProductListToUpdate(final List<Product> productList, final List<ProductPoDto> productPoDTOList) {
-
-		return productList.stream().map(product -> getProductToUpdate(productPoDTOList, product)).collect(Collectors.toList());
-	}
-
-	/**
-	 * Get product object with new stock.
-	 *
-	 * @param productPoDTOList {@link List<ProductPoDto>}
-	 * @param product          {@link Product}
-	 * @return {@link Product}
-	 */
-	private Product getProductToUpdate(final List<ProductPoDto> productPoDTOList, final Product product) {
-
-		final Integer stock = subtract.applyAsInt(product.getStock(), getQuantity(productPoDTOList, product));
-		return Product.builder().idProduct(product.getIdProduct()).stock(stock).build();
-	}
-
-	/**
-	 * Get the quantity per product on the purchase order.
-	 *
-	 * @param productPoDTOList {@link List<ProductPoDto>}
-	 * @param product          {@link Product}
-	 * @return {@link Integer}
-	 */
-	private Integer getQuantity(final List<ProductPoDto> productPoDTOList, final Product product) {
-
-		final ProductPoDto productPoDto = productPoDTOList.stream().filter(productPoDTO ->
-																				   productPoDTO.getIdProduct()
-																							   .equals(product.getIdProduct())).findFirst()
-														  .orElseThrow(
-																  () -> new BusinessAppException(ExceptionCodes.ERROR_TO_PROCESS_PRODUCT));
-
-		return productPoDto.getQuantity();
+		});
 	}
 
 	/**
@@ -281,5 +304,5 @@ public class PurchaseOrderImpl implements IPurchaseOrder {
 
 	IntBinaryOperator subtract = (n1, n2) -> n1 - n2;
 
-	IntBinaryOperator add = (n1, n2) -> n1 - n2;
+	IntBinaryOperator add = (n1, n2) -> n1 + n2;
 }

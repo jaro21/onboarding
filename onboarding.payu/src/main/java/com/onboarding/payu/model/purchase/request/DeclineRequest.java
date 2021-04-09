@@ -1,7 +1,5 @@
 package com.onboarding.payu.model.purchase.request;
 
-import java.util.List;
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
 import lombok.Builder;
@@ -18,13 +16,11 @@ import lombok.ToString;
 @Builder
 @Getter
 @ToString
-public class PurchaseOrderRequest {
+public class DeclineRequest {
 
-	private Integer id;
+	@NotNull(message = "Purchase order identification cannot not be empty")
+	private Integer idPurchaseOrder;
 
 	@NotNull(message = "Customer identification cannot not be empty")
-	private CustomerPoRequest customer;
-
-	@NotEmpty(message = "Product cannot not be empty")
-	private List<ProductPoDto> productList;
+	private Integer idCustomer;
 }

@@ -1,4 +1,4 @@
-package com.onboarding.payu.model.product.response;
+package com.onboarding.payu.model.purchase.response;
 
 import java.math.BigDecimal;
 
@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Object for product's response
+ * Product information for purchase order's response
  *
  * @author <a href='julian.ramirez@payu.com'>Julian Ramirez</a>
  * @version 1.0.0
@@ -16,13 +16,12 @@ import lombok.Getter;
 @Builder
 @Getter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class ProductResponse {
+public class ProductPurchaseResponse {
 
 	private Integer idProduct;
 	private String name;
 	private String code;
 	private String description;
 	private BigDecimal price;
-	private Integer stock;
-	private boolean active;
+	private Integer quantity;
 }

@@ -10,7 +10,8 @@ import lombok.ToString;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class RefundDtoResponse {
-    private String code;
-    private String error;
-    private TransactionDtoResponse transactionDtoResponse;
+
+	private String code;
+	private String error;
+	private TransactionDtoResponse transactionDtoResponse;
 }
