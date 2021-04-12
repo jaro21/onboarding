@@ -47,8 +47,8 @@ public class Customer {
 	@Column(name = "dni_number", length = 45)
 	private String dniNumber;
 
-	@Column(name = "active", length = 1)
-	private Integer active;
+	@Column(name = "enabled", length = 1)
+	private Integer enabled;
 
 	@Column(name = "address", length = 200)
 	private String address;

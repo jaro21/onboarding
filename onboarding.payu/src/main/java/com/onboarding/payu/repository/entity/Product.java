@@ -37,21 +37,21 @@ public class Product {
 	@Column(name = "id_product", updatable = false, nullable = false)
 	private Integer idProduct;
 
-	@NotBlank(message = "Product name cannot not be empty")
+	@NotBlank(message = "Product name cannot be empty")
 	private String name;
 
-	@NotBlank(message = "Product code cannot not be empty")
+	@NotBlank(message = "Product code cannot be empty")
 	private String code;
 
-	@NotBlank(message = "Product description cannot not be empty")
+	@NotBlank(message = "Product description cannot be empty")
 	private String description;
 
-	@NotNull(message = "Product price cannot not be empty")
+	@NotNull(message = "Product price cannot be empty")
 	private BigDecimal price;
 
-	@NotNull(message = "Product stock cannot not be empty")
+	@NotNull(message = "Product stock cannot be empty")
 	private Integer stock;
 
-	@Column(name = "active")
-	private Integer active;
+	@Column(name = "enabled")
+	private Integer enabled;
 }

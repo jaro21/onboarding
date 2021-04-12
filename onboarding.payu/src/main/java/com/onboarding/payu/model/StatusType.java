@@ -7,5 +7,6 @@ public enum StatusType {
 	REFUNDED,
 	APPROVED,
 	SUCCESS,
-	DECLINED;
+	DECLINED,
+	SENT;
 }

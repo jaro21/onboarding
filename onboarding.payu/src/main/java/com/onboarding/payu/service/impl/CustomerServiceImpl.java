@@ -2,8 +2,8 @@ package com.onboarding.payu.service.impl;
 
 import com.onboarding.payu.exception.BusinessAppException;
 import com.onboarding.payu.exception.ExceptionCodes;
-import com.onboarding.payu.model.client.request.CustomerRequest;
-import com.onboarding.payu.model.client.response.CustomerResponse;
+import com.onboarding.payu.model.customer.request.CustomerRequest;
+import com.onboarding.payu.model.customer.response.CustomerResponse;
 import com.onboarding.payu.repository.ICustomerRepository;
 import com.onboarding.payu.repository.entity.Customer;
 import com.onboarding.payu.service.ICustomerService;
@@ -24,9 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class CustomerServiceImpl implements ICustomerService {
 
-	private ICustomerRepository iCustomerRepository;
+	private final ICustomerRepository iCustomerRepository;
 
-	private CustomerMapper customerMapper;
+	private final CustomerMapper customerMapper;
 
 	@Autowired
 	public CustomerServiceImpl(final ICustomerRepository iCustomerRepository, final CustomerMapper customerMapper) {
@@ -42,6 +42,15 @@ public class CustomerServiceImpl implements ICustomerService {
 
 		return iCustomerRepository.findByDniNumber(dniNumber).orElseThrow(
 				() -> new BusinessAppException(ExceptionCodes.CUSTOMER_NUMBER_NOT_EXIST, dniNumber));
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override public Customer findByUsername(final String username) {
+
+		return iCustomerRepository.findByUsername(username).orElseThrow(
+				() -> new BusinessAppException(ExceptionCodes.USERNAME_NOT_EXIST, username));
 	}
 
 	/**
@@ -107,6 +116,9 @@ public class CustomerServiceImpl implements ICustomerService {
 
 		if (iCustomerRepository.findByDniNumber(customerRequest.getDniNumber()).isPresent()) {
 			throw new BusinessAppException(ExceptionCodes.DUPLICATE_CUSTOMER_DNI, customerRequest.getDniNumber());
+		}
+		if (iCustomerRepository.findByUsername(customerRequest.getUsername()).isPresent()) {
+			throw new BusinessAppException(ExceptionCodes.DUPLICATE_USERNAME, customerRequest.getUsername());
 		}
 	}
 }

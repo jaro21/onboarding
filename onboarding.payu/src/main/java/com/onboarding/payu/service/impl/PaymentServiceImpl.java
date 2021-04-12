@@ -31,17 +31,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PaymentServiceImpl implements IPaymentService {
 
-	private IPaymentProvider iPaymentProvider;
+	private final IPaymentProvider iPaymentProvider;
 
-	private ICustomerService iCustomerService;
+	private final ICustomerService iCustomerService;
 
-	private IPurchaseOrder iPurchaseOrder;
+	private final IPurchaseOrder iPurchaseOrder;
 
-	private PaymentValidator paymentValidator;
+	private final PaymentValidator paymentValidator;
 
-	private IPaymentRepository iPaymentRepository;
+	private final IPaymentRepository iPaymentRepository;
 
-	private PaymentMapper paymentMapper;
+	private final PaymentMapper paymentMapper;
 
 	@Autowired
 	public PaymentServiceImpl(final IPaymentProvider iPaymentProvider, final ICustomerService iCustomerService,
@@ -63,9 +63,8 @@ public class PaymentServiceImpl implements IPaymentService {
 	 */
 	@Override public Payment findById(final Integer idPayment) {
 
-		return iPaymentRepository.findById(idPayment).orElseThrow(() ->
-																		  new BusinessAppException(ExceptionCodes.PAYMENT_NOT_EXIST,
-																								   idPayment.toString()));
+		return iPaymentRepository.findById(idPayment).orElseThrow(
+				() -> new BusinessAppException(ExceptionCodes.PAYMENT_NOT_EXIST, idPayment.toString()));
 	}
 
 	/**
@@ -81,7 +80,7 @@ public class PaymentServiceImpl implements IPaymentService {
 		final Customer customer = iCustomerService.findById(paymentTransactionRequest.getIdCustomer());
 
 		final PaymentWithTokenResponse paymentWithTokenResponse =
-				iPaymentProvider.paymentWithToken(paymentMapper.buildTransactionRequest(paymentTransactionRequest, purchaseOrder, customer));
+				iPaymentProvider.paymentWithToken(paymentTransactionRequest, purchaseOrder, customer);
 
 		savePayment(paymentWithTokenResponse, purchaseOrder);
 		return paymentWithTokenResponse;

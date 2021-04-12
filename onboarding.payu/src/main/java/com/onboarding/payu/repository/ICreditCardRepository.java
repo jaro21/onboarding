@@ -15,7 +15,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface ICreditCardRepository extends JpaRepository<CreditCard, Integer> {
 
+	/**
+	 * @param idCustomer {@link Integer}
+	 * @return {@link Optional}
+	 */
 	Optional<List<CreditCard>> findByIdCustomer(Integer idCustomer);
 
-	Optional<CreditCard> findByToken(String token);
 }

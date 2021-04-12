@@ -30,9 +30,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ProductServiceImpl implements IProductService {
 
-	private IProductRepository iProductRepository;
+	private final IProductRepository iProductRepository;
 
-	private ProductMapper productMapper;
+	private final ProductMapper productMapper;
 
 	@Autowired
 	public ProductServiceImpl(final IProductRepository iProductRepository,
@@ -60,10 +60,10 @@ public class ProductServiceImpl implements IProductService {
 		return iProductRepository.findAll().stream().map(productMapper::toProductResponse).collect(Collectors.toList());
 	}
 
-	@Override public List<ProductResponse> findByActive() {
+	@Override public List<ProductResponse> findByEnabled() {
 
-		return iProductRepository.findByActive(ActiveType.ACTIVE.getId()).orElse(Collections.emptyList())
-				.stream().map(productMapper::toProductResponse).collect(Collectors.toList());
+		return iProductRepository.findByEnabled(ActiveType.ENABLED.getId()).orElse(Collections.emptyList())
+								 .stream().map(productMapper::toProductResponse).collect(Collectors.toList());
 	}
 
 	/**

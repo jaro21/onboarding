@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class OrderProductServicesImpl implements IOrderProductService {
 
-	private IOrderProductRepository iOrderProductRepository;
+	private final IOrderProductRepository iOrderProductRepository;
 
 	@Autowired
 	public OrderProductServicesImpl(final IOrderProductRepository iOrderProductRepository) {

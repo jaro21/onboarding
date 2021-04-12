@@ -8,82 +8,90 @@ import com.onboarding.payu.client.payu.model.refund.request.OrderPayU;
 import com.onboarding.payu.client.payu.model.refund.request.RefundPayURequest;
 import com.onboarding.payu.client.payu.model.refund.request.TransactionPayU;
 import com.onboarding.payu.client.payu.model.refund.response.RefundPayUResponse;
-import com.onboarding.payu.client.payu.model.refund.response.TransactionPayUResponse;
-import com.onboarding.payu.model.refund.request.RefundDtoRequest;
 import com.onboarding.payu.model.refund.response.RefundDtoResponse;
-import com.onboarding.payu.model.refund.response.TransactionDtoResponse;
+import com.onboarding.payu.repository.entity.Payment;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 public class RefundPayuMapper {
 
-	public RefundPayURequest toRefundPayURequest(final RefundDtoRequest refundDtoRequest, final Merchant merchant) {
+	/**
+	 *
+	 * @param payment {@link Payment}
+	 * @param reason {@link String}
+	 * @param merchant {@link Merchant}
+	 * @return {@link RefundPayURequest}
+	 */
+	public RefundPayURequest toRefundPayURequest(final Payment payment, final String reason, final Merchant merchant) {
 
 		final RefundPayURequest.RefundPayURequestBuilder refundPayURequestBuilder =
-				RefundPayURequest.builder().language(LanguageType.ES.getLanguage())
-								.command(CommanType.SUBMIT_TRANSACTION.name())
-								.merchant(merchant)
-								.test(false);
+				RefundPayURequest.builder().language(LanguageType.EN.getLanguage())
+								 .command(CommanType.SUBMIT_TRANSACTION.name())
+								 .merchant(merchant)
+								 .test(false);
 
-		toTransactionPayU(refundDtoRequest, refundPayURequestBuilder);
+		toTransactionPayU(payment, reason, refundPayURequestBuilder);
 
 		return refundPayURequestBuilder.build();
 	}
 
-	private void toTransactionPayU(final RefundDtoRequest refundDtoRequest,
-											  final RefundPayURequest.RefundPayURequestBuilder refundPayURequestBuilder) {
+	/**
+	 *
+	 * @param payment {@link Payment}
+	 * @param reason {@link String}
+	 * @param refundPayURequestBuilder {@link RefundPayURequest}
+	 */
+	private void toTransactionPayU(final Payment payment, final String reason,
+								   final RefundPayURequest.RefundPayURequestBuilder refundPayURequestBuilder) {
 
-		final TransactionPayU.TransactionPayUBuilder transactionPayUBuilder =
-				TransactionPayU.builder().type(TransactionType.REFUND.name())
-							  .reason(refundDtoRequest.getReason())
-							  .parentTransactionId(refundDtoRequest.getTransactionId())
-							  .order(toOrderPayU(refundDtoRequest.getOrderId()));
+		try {
+			final JSONObject json = new JSONObject(payment.getResponse_json());
 
-		refundPayURequestBuilder.transaction(transactionPayUBuilder.build());
+			final TransactionPayU.TransactionPayUBuilder transactionPayUBuilder =
+					TransactionPayU.builder().type(TransactionType.REFUND.name())
+								   .reason(reason)
+								   .parentTransactionId(json.getJSONObject("transactionResponse").getString("transactionId"))
+								   .order(OrderPayU.builder().id(json.getJSONObject("transactionResponse").getLong("orderId")).build());
+
+			refundPayURequestBuilder.transaction(transactionPayUBuilder.build());
+		} catch (JSONException e) {
+			log.error("Json invalid payment id = {}", payment.getIdPayment());
+		}
 	}
 
-	private OrderPayU toOrderPayU(final Long orderId) {
-
-		return OrderPayU.builder().id(orderId).build();
-	}
-
+	/**
+	 *
+	 * @param refundPayUResponse {@link RefundPayUResponse}
+	 * @return {@link RefundDtoResponse}
+	 */
 	public RefundDtoResponse toRefundDtoResponse(final RefundPayUResponse refundPayUResponse) {
 
-		log.error("toRefundDtoResponse : ",refundPayUResponse.toString());
+		log.info("toRefundDtoResponse : ", refundPayUResponse.toString());
 		final RefundDtoResponse.RefundDtoResponseBuilder refundDtoResponseBuilder =
 				RefundDtoResponse.builder().code(refundPayUResponse.getCode())
-								.error(refundPayUResponse.getError());
+								 .error(refundPayUResponse.getError());
 
-		toTransactionDtoResponse(refundPayUResponse.getTransactionResponse(), refundDtoResponseBuilder);
+		toTransactionDtoResponse(refundPayUResponse, refundDtoResponseBuilder);
 
 		return refundDtoResponseBuilder.build();
 	}
 
-	private void toTransactionDtoResponse(final TransactionPayUResponse transactionPayUResponse,
-															final RefundDtoResponse.RefundDtoResponseBuilder refundDtoResponseBuilder) {
+	/**
+	 * @param refundPayUResponse       {@link RefundPayUResponse}
+	 * @param refundDtoResponseBuilder {@link RefundDtoResponse}
+	 */
+	private void toTransactionDtoResponse(final RefundPayUResponse refundPayUResponse,
+										  final RefundDtoResponse.RefundDtoResponseBuilder refundDtoResponseBuilder) {
 
-		if (transactionPayUResponse != null) {
+		if (refundPayUResponse != null && refundPayUResponse.getTransactionResponse() != null) {
+			refundDtoResponseBuilder.status(refundPayUResponse.getTransactionResponse().getState());
 
-			final TransactionDtoResponse.TransactionDtoResponseBuilder transactionDtoResponseBuilder =
-					TransactionDtoResponse.builder().orderID(transactionPayUResponse.getOrderID())
-								  .transactionID(transactionPayUResponse.getTransactionID())
-								  .state(transactionPayUResponse.getState())
-								  .paymentNetworkResponseCode(transactionPayUResponse.getPaymentNetworkResponseCode())
-								  .paymentNetworkResponseErrorMessage(
-										  transactionPayUResponse.getPaymentNetworkResponseErrorMessage())
-								  .trazabilityCode(transactionPayUResponse.getTrazabilityCode())
-								  .authorizationCode(transactionPayUResponse.getAuthorizationCode())
-								  .pendingReason(transactionPayUResponse.getPendingReason())
-								  .responseCode(transactionPayUResponse.getResponseCode())
-								  .errorCode(transactionPayUResponse.getErrorCode())
-								  .responseMessage(transactionPayUResponse.getResponseMessage())
-								  .transactionDate(transactionPayUResponse.getTransactionDate())
-								  .transactionTime(transactionPayUResponse.getTransactionTime())
-								  .operationDate(transactionPayUResponse.getOperationDate());
-
-			refundDtoResponseBuilder.transactionDtoResponse(transactionDtoResponseBuilder.build());
+			final JSONObject jsonObject = new JSONObject(refundPayUResponse);
+			refundDtoResponseBuilder.transactionResponse(jsonObject.toString());
 		}
 	}
 }

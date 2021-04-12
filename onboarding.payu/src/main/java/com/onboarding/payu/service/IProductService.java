@@ -35,7 +35,7 @@ public interface IProductService {
 	 *
 	 * @return {@link List<Product>}
 	 */
-	List<ProductResponse> findByActive();
+	List<ProductResponse> findByEnabled();
 
 	/**
 	 * Method to get all products by ids

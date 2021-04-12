@@ -1,7 +1,7 @@
 package com.onboarding.payu.service;
 
-import com.onboarding.payu.model.client.request.CustomerRequest;
-import com.onboarding.payu.model.client.response.CustomerResponse;
+import com.onboarding.payu.model.customer.request.CustomerRequest;
+import com.onboarding.payu.model.customer.response.CustomerResponse;
 import com.onboarding.payu.repository.entity.Customer;
 
 /**
@@ -21,6 +21,15 @@ public interface ICustomerService {
 	 * @
 	 */
 	Customer findByDniNumber(String dniNumber) ;
+
+	/**
+	 * Method to get Customer by username
+	 *
+	 * @param username {@link String}
+	 * @return {@link Customer}
+	 * @
+	 */
+	Customer findByUsername(String username) ;
 
 	/**
 	 * Method to get Customer by idCustomer

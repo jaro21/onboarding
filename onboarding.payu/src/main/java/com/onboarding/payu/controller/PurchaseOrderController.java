@@ -50,7 +50,7 @@ public class PurchaseOrderController {
 	public ResponseEntity<PurchaseOrderResponse> updatePurchaseOrder(
 			@Valid @NotNull @RequestBody final PurchaseOrderRequest purchaseOrderRequest) {
 
-		Validate.notNull(purchaseOrderRequest.getId(), "Purchase order identification cannot not be empty");
+		Validate.notNull(purchaseOrderRequest.getId(), "Purchase order identification cannot be empty");
 		return new ResponseEntity<>(iPurchaseOrder.updatePurchaseOrder(purchaseOrderRequest), HttpStatus.CREATED);
 	}
 

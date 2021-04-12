@@ -1,38 +1,35 @@
 package com.onboarding.payu.provider.payments.payu.mapper;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 
 import com.onboarding.payu.client.payu.model.CommanType;
 import com.onboarding.payu.client.payu.model.CountryType;
+import com.onboarding.payu.client.payu.model.CurrencyType;
 import com.onboarding.payu.client.payu.model.ExtraParameterType;
 import com.onboarding.payu.client.payu.model.LanguageType;
 import com.onboarding.payu.client.payu.model.Merchant;
 import com.onboarding.payu.client.payu.model.TransactionType;
 import com.onboarding.payu.client.payu.model.payment.request.AdditionalValues;
-import com.onboarding.payu.client.payu.model.payment.request.Buyer;
 import com.onboarding.payu.client.payu.model.payment.request.ExtraParameters;
-import com.onboarding.payu.client.payu.model.payment.request.IngAddress;
 import com.onboarding.payu.client.payu.model.payment.request.Order;
 import com.onboarding.payu.client.payu.model.payment.request.Payer;
 import com.onboarding.payu.client.payu.model.payment.request.PaymentWithTokenPayURequest;
 import com.onboarding.payu.client.payu.model.payment.request.TransactionPayU;
 import com.onboarding.payu.client.payu.model.payment.request.TxValue;
-import com.onboarding.payu.client.payu.model.payment.response.ExtraParametersPayU;
 import com.onboarding.payu.client.payu.model.payment.response.PaymentWithTokenPayUResponse;
-import com.onboarding.payu.client.payu.model.payment.response.TransactionPayUResponse;
-import com.onboarding.payu.model.payment.request.AdditionalValuesDto;
-import com.onboarding.payu.model.payment.request.BuyerDto;
-import com.onboarding.payu.model.payment.request.IngAddressDto;
-import com.onboarding.payu.model.payment.request.OrderDto;
-import com.onboarding.payu.model.payment.request.PayerDto;
-import com.onboarding.payu.model.payment.request.TransactionRequest;
-import com.onboarding.payu.model.payment.request.TxValueDto;
-import com.onboarding.payu.model.payment.response.ExtraParametersResponse;
+import com.onboarding.payu.exception.BusinessAppException;
+import com.onboarding.payu.exception.ExceptionCodes;
+import com.onboarding.payu.model.payment.request.PaymentTransactionRequest;
 import com.onboarding.payu.model.payment.response.PaymentWithTokenResponse;
-import com.onboarding.payu.model.payment.response.TransactionResponse;
+import com.onboarding.payu.repository.entity.CreditCard;
+import com.onboarding.payu.repository.entity.Customer;
+import com.onboarding.payu.repository.entity.PurchaseOrder;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -50,44 +47,70 @@ public class PaymentPayuMapper {
 	@Value("${payment-api.order.accountId}")
 	private String accountId;
 
-	public PaymentWithTokenPayURequest toPaymentWithTokenRequest(final TransactionRequest transactionRequest,
-																 final Merchant merchant) {
+	/**
+	 * @param merchant                  {@link Merchant}
+	 * @param paymentTransactionRequest {@link PaymentTransactionRequest}
+	 * @param purchaseOrder             {@link PurchaseOrder}
+	 * @param customer                  {@link Customer}
+	 * @return {@link PaymentWithTokenPayURequest}
+	 */
+	public PaymentWithTokenPayURequest buildPaymentWithTokenRequest(final Merchant merchant,
+																	final PaymentTransactionRequest paymentTransactionRequest,
+																	final PurchaseOrder purchaseOrder,
+																	final Customer customer) {
 
-		final String signatureMd5 = getSignature(merchant.getApiKey(), accountId, transactionRequest.getOrderDto());
+		final String signatureMd5 = getSignature(merchant.getApiKey(), accountId, purchaseOrder.getReferenceCode(),
+												 purchaseOrder.getValue(), CurrencyType.COP.name());
+
 		final PaymentWithTokenPayURequest.PaymentWithTokenPayURequestBuilder paymentWithTokenPayURequest =
 				PaymentWithTokenPayURequest.builder()
-										   .language(LanguageType.ES.getLanguage())
+										   .language(LanguageType.EN.getLanguage())
 										   .command(CommanType.SUBMIT_TRANSACTION.toString())
 										   .merchant(merchant)
 										   .test(false);
 
-		toTransaccion(transactionRequest, signatureMd5, paymentWithTokenPayURequest);
-		log.error(paymentWithTokenPayURequest.toString());
+		toTransaccion(signatureMd5, paymentWithTokenPayURequest, paymentTransactionRequest, purchaseOrder, customer);
+
 		return paymentWithTokenPayURequest.build();
 	}
 
-	public void toTransaccion(final TransactionRequest transactionRequest, final String signatureMd5,
-							  final PaymentWithTokenPayURequest.PaymentWithTokenPayURequestBuilder paymentWithTokenPayURequest) {
+	/**
+	 * Get CreditCard object by Id
+	 *
+	 * @param creditCardList {@link List <CreditCard>}
+	 * @param idCreditCard   {@link Integer}
+	 * @return {@link CreditCard}
+	 */
+	private CreditCard getCreditCardById(final List<CreditCard> creditCardList, final Integer idCreditCard) {
 
-		if (transactionRequest != null) {
+		return creditCardList.stream().filter(creditCard -> creditCard.getIdCreditCard().equals(idCreditCard)).findFirst()
+							 .orElseThrow(() -> new BusinessAppException(ExceptionCodes.CREDIT_CARD_INVALID));
+	}
 
-			final TransactionPayU.TransactionPayUBuilder transactionPayU =
-					TransactionPayU.builder()
-								   .creditCardTokenId(transactionRequest.getCreditCardTokenId())
-								   .type(TransactionType.AUTHORIZATION_AND_CAPTURE.toString())
-								   .paymentMethod(transactionRequest.getPaymentMethod())
-								   .paymentCountry(CountryType.COLOMBIA.getCountry())
-								   .deviceSessionId(transactionRequest.getDeviceSessionId())
-								   .ipAddress(transactionRequest.getIpAddress())
-								   .cookie(transactionRequest.getCookie())
-								   .userAgent(transactionRequest.getUserAgent())
-								   .extraParameters(getExtraParameter());
+	public void toTransaccion(final String signatureMd5,
+							  final PaymentWithTokenPayURequest.PaymentWithTokenPayURequestBuilder paymentWithTokenPayURequest,
+							  final PaymentTransactionRequest transactionRequest,
+							  final PurchaseOrder purchaseOrder,
+							  final Customer customer) {
 
-			toOrder(transactionRequest.getOrderDto(), signatureMd5, transactionPayU);
-			toPayer(transactionRequest.getPayerDto(), transactionPayU);
+		final CreditCard creditCard = getCreditCardById(customer.getCreditCardList(), transactionRequest.getIdCreditCard());
 
-			paymentWithTokenPayURequest.transaction(transactionPayU.build());
-		}
+		final TransactionPayU.TransactionPayUBuilder transactionPayU =
+				TransactionPayU.builder()
+							   .creditCardTokenId(creditCard.getToken())
+							   .type(TransactionType.AUTHORIZATION_AND_CAPTURE.toString())
+							   .paymentMethod(creditCard.getPaymentMethod())
+							   .paymentCountry(CountryType.COLOMBIA.getCountry())
+							   .deviceSessionId(transactionRequest.getDeviceSessionId())
+							   .ipAddress(transactionRequest.getIpAddress())
+							   .cookie(transactionRequest.getCookie())
+							   .userAgent(transactionRequest.getUserAgent())
+							   .extraParameters(getExtraParameter());
+
+		toOrder(purchaseOrder, signatureMd5, transactionPayU);
+		toPayer(customer, transactionPayU);
+
+		paymentWithTokenPayURequest.transaction(transactionPayU.build());
 	}
 
 	private ExtraParameters getExtraParameter() {
@@ -95,174 +118,80 @@ public class PaymentPayuMapper {
 		return ExtraParameters.builder().installmentsNumber(ExtraParameterType.INSTALLMENTS_NUMBER.getId()).build();
 	}
 
-	private void toPayer(final PayerDto payerDto,
+	private void toPayer(final Customer customer,
 						 final TransactionPayU.TransactionPayUBuilder transactionPayU) {
 
-		if (payerDto != null) {
+		if (customer != null) {
 
-			final Payer.PayerBuilder payerBuilder = Payer.builder().merchantPayerId(payerDto.getMerchantPayerId())
-														 .fullName(payerDto.getFullName())
-														 .emailAddress(payerDto.getEmailAddress())
-														 .contactPhone(payerDto.getContactPhone())
-														 .dniNumber(payerDto.getDniNumber());
-
-			toIngAddressPayer(payerDto.getBillingAddressDto(), payerBuilder);
+			final Payer.PayerBuilder payerBuilder = Payer.builder().merchantPayerId("1")
+														 .fullName(customer.getFullName())
+														 .emailAddress(customer.getEmail())
+														 .contactPhone(customer.getPhone())
+														 .dniNumber(customer.getDniNumber());
 
 			transactionPayU.payer(payerBuilder.build());
 		}
 	}
 
-	private void toIngAddressPayer(final IngAddressDto billingAddressDto, final Payer.PayerBuilder payerBuilder) {
-
-		if (billingAddressDto != null) {
-
-			payerBuilder.billingAddress(getIngAddress(billingAddressDto));
-		}
-	}
-
-	private IngAddress getIngAddress(final IngAddressDto billingAddressDto) {
-
-		return IngAddress.builder().street1(billingAddressDto.getStreet1())
-												.street2(billingAddressDto.getStreet2())
-												.city(billingAddressDto.getCity())
-												.state(billingAddressDto.getState())
-												.country(billingAddressDto.getCountry())
-												.postalCode(billingAddressDto.getPostalCode())
-												.phone(billingAddressDto.getPhone()).build();
-	}
-
-	private void toOrder(final OrderDto orderDto, final String signatureMd5,
+	private void toOrder(final PurchaseOrder purchaseOrder, final String signatureMd5,
 						 final TransactionPayU.TransactionPayUBuilder transactionPayU) {
 
-		if (orderDto != null) {
+		final Order.OrderBuilder orderBuilder = Order.builder().accountId(accountId)
+													 .referenceCode(purchaseOrder.getReferenceCode())
+													 .description("Purchase Order id " + purchaseOrder.getIdPurchaseOrder())
+													 .language(LanguageType.EN.getLanguage())
+													 .signature(signatureMd5);
 
-			final Order.OrderBuilder orderBuilder = Order.builder().accountId(accountId)
-														 .referenceCode(orderDto.getReferenceCode())
-														 .description(orderDto.getDescription())
-														 .language(LanguageType.ES.getLanguage())
-														 .signature(signatureMd5);
+		toAdditionalValues(purchaseOrder, orderBuilder);
 
-			toAdditionalValues(orderDto.getAdditionalValuesDto(), orderBuilder);
-			toBuyer(orderDto.getBuyerDto(), orderBuilder);
-			toIngAddressOrder(orderDto.getShippingAddressDto(), orderBuilder);
-
-			transactionPayU.order(orderBuilder.build());
-		}
+		transactionPayU.order(orderBuilder.build());
 	}
 
-	private void toIngAddressOrder(final IngAddressDto shippingAddressDto,
-								   final Order.OrderBuilder orderBuilder) {
-
-		if (shippingAddressDto != null) {
-
-			orderBuilder.shippingAddress(getIngAddress(shippingAddressDto));
-		}
-	}
-
-	private void toBuyer(final BuyerDto buyerDto,
-						 final Order.OrderBuilder orderBuilder) {
-
-		if (buyerDto != null) {
-
-			final Buyer.BuyerBuilder buyerBuilder = Buyer.builder()
-														 .merchantBuyerId(buyerDto.getMerchantBuyerId())
-														 .fullName(buyerDto.getFullName())
-														 .emailAddress(buyerDto.getEmailAddress())
-														 .contactPhone(buyerDto.getContactPhone())
-														 .dniNumber(buyerDto.getDniNumber());
-			toIngAddressBuyer(buyerDto.getShippingAddressDto(), buyerBuilder);
-			orderBuilder.buyer(buyerBuilder.build());
-		}
-	}
-
-	private void toIngAddressBuyer(final IngAddressDto shippingAddressDto, final Buyer.BuyerBuilder buyerBuilder) {
-
-		if (shippingAddressDto != null) {
-
-			buyerBuilder.shippingAddress(getIngAddress(shippingAddressDto));
-		}
-	}
-
-	private void toAdditionalValues(final AdditionalValuesDto additionalValuesDto,
+	private void toAdditionalValues(final PurchaseOrder purchaseOrder,
 									final Order.OrderBuilder orderBuilder) {
 
-		if (additionalValuesDto != null && additionalValuesDto.getTxValueDto() != null) {
+		final TxValue txValue = TxValue.builder().value(purchaseOrder.getValue()).currency(CurrencyType.COP.name()).build();
 
-			final AdditionalValues additionalValues =
-					AdditionalValues.builder().txValue(toTxValue(additionalValuesDto.getTxValueDto())).build();
-			orderBuilder.additionalValues(additionalValues);
-		}
-	}
-
-	private TxValue toTxValue(final TxValueDto txValueDto) {
-
-		return TxValue.builder().value(txValueDto.getValue()).currency(txValueDto.getCurrency()).build();
+		orderBuilder.additionalValues(AdditionalValues.builder().txValue(txValue).build());
 	}
 
 	public PaymentWithTokenResponse toPaymentWithTokenResponse(final PaymentWithTokenPayUResponse paymentWithToken) {
 
-		PaymentWithTokenResponse.PaymentWithTokenResponseBuilder paymentWithTokenResponseBuilder =
+		final PaymentWithTokenResponse.PaymentWithTokenResponseBuilder paymentWithTokenResponseBuilder =
 				PaymentWithTokenResponse.builder().code(paymentWithToken.getCode())
 										.error(paymentWithToken.getError());
 
-		toTransactionResponse(paymentWithToken.getTransactionResponse(), paymentWithTokenResponseBuilder);
+		toTransactionResponse(paymentWithToken, paymentWithTokenResponseBuilder);
 
 		return paymentWithTokenResponseBuilder.build();
 
 	}
 
-	public void toTransactionResponse(final TransactionPayUResponse transactionPayUResponse,
+	public void toTransactionResponse(final PaymentWithTokenPayUResponse paymentWithToken,
 									  final PaymentWithTokenResponse.PaymentWithTokenResponseBuilder paymentWithTokenResponseBuilder) {
 
-		if (transactionPayUResponse != null) {
+		if (paymentWithToken != null && paymentWithToken.getTransactionResponse() != null) {
+			paymentWithTokenResponseBuilder.status(paymentWithToken.getTransactionResponse().getState());
 
-			final TransactionResponse.TransactionResponseBuilder transactionResponseBuilder =
-					TransactionResponse.builder().orderId(transactionPayUResponse.getOrderId())
-									   .transactionId(transactionPayUResponse.getTransactionId())
-									   .state(transactionPayUResponse.getState())
-									   .paymentNetworkResponseCode(transactionPayUResponse.getPaymentNetworkResponseCode())
-									   .paymentNetworkResponseErrorMessage(
-											   transactionPayUResponse.getPaymentNetworkResponseErrorMessage())
-									   .trazabilityCode(transactionPayUResponse.getTrazabilityCode())
-									   .authorizationCode(transactionPayUResponse.getAuthorizationCode())
-									   .pendingReason(transactionPayUResponse.getPendingReason())
-									   .responseCode(transactionPayUResponse.getResponseCode())
-									   .errorCode(transactionPayUResponse.getErrorCode())
-									   .responseMessage(transactionPayUResponse.getResponseMessage())
-									   .transactionDate(transactionPayUResponse.getTransactionDate())
-									   .transactionTime(transactionPayUResponse.getTransactionTime())
-									   .operationDate(transactionPayUResponse.getOperationDate());
-
-			toExtraParameters(transactionPayUResponse.getExtraParameters(), transactionResponseBuilder);
-
-			paymentWithTokenResponseBuilder.transactionResponse(transactionResponseBuilder.build());
-		}
-	}
-
-	private void toExtraParameters(final ExtraParametersPayU extraParameters,
-								   final TransactionResponse.TransactionResponseBuilder transactionResponseBuilder) {
-
-		if (extraParameters != null) {
-
-			final ExtraParametersResponse extraParametersResponse =
-					ExtraParametersResponse.builder().bankReferencedCode(extraParameters.getBankReferencedCode()).build();
-			transactionResponseBuilder.extraParameters(extraParametersResponse);
+			final JSONObject jsonObject = new JSONObject(paymentWithToken);
+			paymentWithTokenResponseBuilder.transactionResponse(jsonObject.toString());
 		}
 	}
 
 	/**
 	 * Generate MD5 hash value of "ApiKey~merchantId~referenceCode~tx_value~currency"
 	 *
-	 * @param apiKey    {@link String}
-	 * @param accountId {@link String}
-	 * @param orderDto  {@link OrderDto}
+	 * @param apiKey        {@link String}
+	 * @param accountId     {@link String}
+	 * @param referenceCode {@link String}
+	 * @param value         {@link BigDecimal}
+	 * @param currency      {@link String}
 	 * @return {@link String}
 	 */
-	public static String getSignature(final String apiKey, final String accountId, final OrderDto orderDto) {
+	public static String getSignature(final String apiKey, final String accountId, final String referenceCode, final BigDecimal value,
+									  final String currency) {
 
-		final String signatureString = apiKey + "~" + accountId + "~" + orderDto.getReferenceCode()
-				+ "~" + orderDto.getAdditionalValuesDto().getTxValueDto().getValue()
-				+ "~" + orderDto.getAdditionalValuesDto().getTxValueDto().getCurrency();
+		final String signatureString = apiKey + "~" + accountId + "~" + referenceCode + "~" + value + "~" + currency;
 
 		try {
 			MessageDigest md = MessageDigest.getInstance("MD5");

@@ -7,15 +7,21 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+/**
+ * Refund request object
+ *
+ * @author <a href='julian.ramirez@payu.com'>Julian Ramirez</a>
+ * @version 1.0.0
+ * @since 1.0.0
+ */
 @Builder
 @Getter
 @ToString
 public class RefundDtoRequest {
 
-	@NotNull(message = "Payment Id cannot not be empty")
+	@NotNull(message = "Payment Id cannot be empty")
 	private Integer idPayment;
-	@NotBlank(message = "Reason for refund cannot not be empty")
+
+	@NotBlank(message = "Reason for refund cannot be empty")
 	private String reason;
-	private Long orderId;
-	private String transactionId;
 }

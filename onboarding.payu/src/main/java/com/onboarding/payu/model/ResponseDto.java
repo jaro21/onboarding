@@ -8,6 +8,7 @@ import lombok.Getter;
 @Getter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class ResponseDto {
+
 	private String message;
 	private String errorCode;
 }

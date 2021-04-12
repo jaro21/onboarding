@@ -18,9 +18,9 @@ import lombok.ToString;
 @ToString
 public class DeclineRequest {
 
-	@NotNull(message = "Purchase order identification cannot not be empty")
+	@NotNull(message = "Purchase order identification cannot be empty")
 	private Integer idPurchaseOrder;
 
-	@NotNull(message = "Customer identification cannot not be empty")
+	@NotNull(message = "Customer identification cannot be empty")
 	private Integer idCustomer;
 }

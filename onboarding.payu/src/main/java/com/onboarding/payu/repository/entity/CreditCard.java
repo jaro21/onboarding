@@ -37,11 +37,11 @@ public class CreditCard {
 	private Integer idCustomer;
 
 	@Column(name = "masked_number", length = 20)
-	@NotBlank(message = "Masked Number cannot not be empty")
+	@NotBlank(message = "Masked Number cannot be empty")
 	private String maskedNumber;
 
 	@Column(name = "payment_method", length = 20)
-	@NotBlank(message = "Payment Method cannot not be empty")
+	@NotBlank(message = "Payment Method cannot be empty")
 	private String paymentMethod;
 
 	@Column(name = "token", length = 45)

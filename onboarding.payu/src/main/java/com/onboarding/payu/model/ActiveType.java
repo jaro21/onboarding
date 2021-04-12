@@ -11,13 +11,15 @@ import lombok.Getter;
  */
 @Getter
 public enum ActiveType {
-	INACTIVE(0, false),
-	ACTIVE(1, true);
+
+	DISABLED(0, false),
+	ENABLED(1, true);
 
 	private Integer id;
 	private boolean name;
 
 	ActiveType(final int id, final boolean name) {
+
 		this.id = id;
 		this.name = name;
 	}

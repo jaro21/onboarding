@@ -12,7 +12,8 @@ import lombok.Getter;
 @Getter
 public enum LanguageType {
 
-	ES("es");
+	ES("es"),
+	EN("en");
 
 	private String language;
 

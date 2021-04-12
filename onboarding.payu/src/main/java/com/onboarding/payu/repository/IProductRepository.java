@@ -20,7 +20,7 @@ public interface IProductRepository extends JpaRepository<Product, Integer> {
 
 	Optional<Product> findByCode(String code);
 
-	Optional<List<Product>> findByActive(Integer active);
+	Optional<List<Product>> findByEnabled(Integer enabled);
 
 	@Modifying
 	@Query("update Product set stock = :stock where idProduct = :id")

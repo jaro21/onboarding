@@ -4,6 +4,13 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 
+/**
+ * Credit Card token response object
+ *
+ * @author <a href='julian.ramirez@payu.com'>Julian Ramirez</a>
+ * @version 1.0.0
+ * @since 1.0.0
+ */
 @Builder
 @Getter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)

@@ -27,7 +27,7 @@ public class ProductMapper {
 					  .description(productRequest.getDescription())
 					  .price(productRequest.getPrice())
 					  .stock(productRequest.getStock())
-					  .active(productRequest.isActive() ? ActiveType.ACTIVE.getId():ActiveType.INACTIVE.getId())
+					  .enabled(productRequest.isEnabled() ? ActiveType.ENABLED.getId() : ActiveType.DISABLED.getId())
 					  .build();
 	}
 
@@ -54,7 +54,7 @@ public class ProductMapper {
 							  .description(product.getDescription())
 							  .price(product.getPrice())
 							  .stock(product.getStock())
-							  .active(ActiveType.ACTIVE.getId().equals(product.getActive()))
+							  .enabled(ActiveType.ENABLED.getId().equals(product.getEnabled()))
 							  .build();
 	}
 }

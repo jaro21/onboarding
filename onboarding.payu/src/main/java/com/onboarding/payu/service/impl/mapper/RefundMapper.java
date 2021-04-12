@@ -1,30 +1,14 @@
 package com.onboarding.payu.service.impl.mapper;
 
-import com.google.gson.Gson;
 import com.onboarding.payu.model.refund.request.RefundDtoRequest;
 import com.onboarding.payu.model.refund.response.RefundDtoResponse;
 import com.onboarding.payu.repository.entity.Payment;
 import com.onboarding.payu.repository.entity.Refund;
+import org.json.JSONObject;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RefundMapper {
-
-	/**
-	 * Build RefundDtoRequest object
-	 *
-	 * @param refundDtoRequest {@link RefundDtoRequest}
-	 * @param payment          {@link Payment}
-	 * @return {@link RefundDtoRequest}
-	 */
-	public RefundDtoRequest buildRefundDtoRequest(final RefundDtoRequest refundDtoRequest,
-												  final Payment payment) {
-
-		return RefundDtoRequest.builder().idPayment(refundDtoRequest.getIdPayment())
-							   .orderId(payment.getOrderId())
-							   .reason(refundDtoRequest.getReason())
-							   .transactionId(payment.getTransactionId()).build();
-	}
 
 	/**
 	 * Get refund information to save
@@ -55,7 +39,8 @@ public class RefundMapper {
 
 		if (refundDtoResponse != null) {
 
-			refundBuilder.response_json(new Gson().toJson(refundDtoResponse));
+			final JSONObject jsonObject = new JSONObject(refundDtoResponse);
+			refundBuilder.response_json(jsonObject.toString());
 		}
 	}
 }

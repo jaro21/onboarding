@@ -17,10 +17,10 @@ import lombok.ToString;
 @ToString
 public class ProductPoDto {
 
-	@NotEmpty(message = "Product id cannot not be empty")
+	@NotEmpty(message = "Product id cannot be empty")
 	private Integer idProduct;
 
-	@NotEmpty(message = "Product quantity cannot not be empty")
+	@NotEmpty(message = "Product quantity cannot be empty")
 	private Integer quantity;
 	private BigDecimal unitValue;
 }

@@ -25,7 +25,7 @@ public class TokenizationPayuMapper {
 		return TokenizationPayURequest.builder().creditCardToken(getCreditCardToken(creditCardRequest))
 									  .merchant(merchant)
 									  .command(CommanType.CREATE_TOKEN.toString())
-									  .language(LanguageType.ES.getLanguage()).build();
+									  .language(LanguageType.EN.getLanguage()).build();
 	}
 
 	public static CreditCardPayU getCreditCardToken(final CreditCardRequest creditCardRequest) {
